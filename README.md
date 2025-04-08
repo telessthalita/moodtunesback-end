@@ -63,6 +63,5 @@ MoodTunes não é só um bot musical, é um companheiro emocional com toque de D
 - `Flask`
 - `Spotipy` (client para Spotify API)
 - `google.generativeai` (SDK oficial da Gemini)
-- `.env` para variáveis sensíveis
-- `Render.com` para deploy
+
 
