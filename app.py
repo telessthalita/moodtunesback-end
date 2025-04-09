@@ -8,6 +8,7 @@ app = Flask(__name__)
 spotify_clients = {}
 user_sessions = {}
 
+
 @app.route("/")
 def home():
     login_status = request.args.get('login')
@@ -29,18 +30,50 @@ def spotify_login():
 def spotify_callback():
     code = request.args.get('code')
     if not code:
-        return redirect("/?login=error")
+        return """
+        <html>
+        <body>
+            <h2>❌ Erro: Código de autenticação ausente.</h2>
+            <p>Verifique se o processo de login no Spotify foi iniciado corretamente.</p>
+        </body>
+        </html>
+        """
 
     try:
         sp = get_token_from_callback(code)
         user = sp.current_user()
         user_id = user["id"]
-        spotify_clients[user_id] = sp 
-        print(f"🎉 Login feito com sucesso para: {user['display_name']}")
-        return redirect(f"/?login=success&user_id={user_id}")
+        spotify_clients[user_id] = sp
+
+        return f"""
+        <html>
+        <head><title>MoodTunes - Login</title></head>
+        <body>
+            <h2>✅ Login com Spotify realizado com sucesso.</h2>
+            <p>Redirecionando para o MoodTunes...</p>
+            <script>
+                const frontendUrl = localStorage.getItem("frontend_url");
+                if (frontendUrl) {{
+                    window.location.href = `${{frontendUrl}}?login=success&user_id={user_id}`;
+                }} else {{
+                    document.body.innerHTML += "<p>❌ Erro: Não foi possível encontrar a URL do frontend no localStorage.</p>";
+                }}
+            </script>
+        </body>
+        </html>
+        """
     except Exception as e:
         print(f"❌ Erro na autenticação: {str(e)}")
-        return redirect("/?login=error")
+        return """
+        <html>
+        <body>
+            <h2>❌ Erro ao processar o login.</h2>
+            <p>Detalhes foram logados no servidor.</p>
+        </body>
+        </html>
+        """
+
+
 
 @app.route("/moodtalk", methods=["POST"])
 def mood_talk():
