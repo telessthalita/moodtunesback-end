@@ -1,4 +1,4 @@
-from flask import Flask, jsonify, request, redirect
+from flask import Flask, jsonify, request, redirect, make_response
 from spotify_auth import get_auth_url, get_token_from_callback
 from gemini_chat import start_conversation, extract_mood
 from playlist_creator import create_playlist_based_on_mood
@@ -28,52 +28,59 @@ def spotify_login():
 
 @app.route("/callback")
 def spotify_callback():
-    code = request.args.get('code')
-    if not code:
+    code = request.args.get("code")
+    error = request.args.get("error")
+
+    if error:
         return """
         <html>
-        <body>
-            <h2>❌ Erro: Código de autenticação ausente.</h2>
-            <p>Verifique se o processo de login no Spotify foi iniciado corretamente.</p>
-        </body>
+          <body>
+            <h1>❌ Erro no login com Spotify</h1>
+            <p>Erro: {}</p>
+            <script>window.close();</script>
+          </body>
         </html>
-        """
+        """.format(error)
 
-    try:
-        sp = get_token_from_callback(code)
-        user = sp.current_user()
-        user_id = user["id"]
-        spotify_clients[user_id] = sp
+    if code:
+        try:
+            token_info = get_token_from_callback(code)
+            sp, token_info = get_valid_spotify_client(token_info)
+            user_profile = sp.current_user()
+            user_id = user_profile["id"]
 
-        return f"""
-        <html>
-        <head><title>MoodTunes - Login</title></head>
-        <body>
-            <h2>✅ Login com Spotify realizado com sucesso.</h2>
-            <p>Redirecionando para o MoodTunes...</p>
-            <script>
-                const frontendUrl = localStorage.getItem("frontend_url");
-                if (frontendUrl) {{
-                    window.location.href = `${{frontendUrl}}?login=success&user_id={user_id}`;
-                }} else {{
-                    document.body.innerHTML += "<p>❌ Erro: Não foi possível encontrar a URL do frontend no localStorage.</p>";
-                }}
-            </script>
-        </body>
-        </html>
-        """
-    except Exception as e:
-        print(f"❌ Erro na autenticação: {str(e)}")
-        return """
-        <html>
-        <body>
-            <h2>❌ Erro ao processar o login.</h2>
-            <p>Detalhes foram logados no servidor.</p>
-        </body>
-        </html>
-        """
+            print(f"[INFO] Login bem-sucedido para user_id: {user_id}")
 
-
+            return f"""
+            <html>
+              <head><title>Login Concluído</title></head>
+              <body>
+                <h1>✅ Login com Spotify realizado!</h1>
+                <p>Usuário: {user_id}</p>
+                <p>Você pode fechar esta aba agora.</p>
+                <script>window.close();</script>
+              </body>
+            </html>
+            """
+        except Exception as e:
+            print(f"[ERRO] Callback Spotify: {str(e)}")
+            return f"""
+            <html>
+              <body>
+                <h1>❌ Erro ao finalizar login</h1>
+                <p>{str(e)}</p>
+                <script>window.close();</script>
+              </body>
+            </html>
+            """
+    return """
+    <html>
+      <body>
+        <h1>❌ Código de autorização não encontrado.</h1>
+        <script>window.close();</script>
+      </body>
+    </html>
+    """
 
 @app.route("/moodtalk", methods=["POST"])
 def mood_talk():
