@@ -2,12 +2,13 @@ from flask import Flask, jsonify, request, redirect, make_response
 from spotify_auth import get_auth_url, get_token_from_callback
 from gemini_chat import start_conversation, extract_mood
 from playlist_creator import create_playlist_based_on_mood
+from flask_cors import CORS
 
 app = Flask(__name__)
+CORS(app, supports_credentials=True)
 
 spotify_clients = {}
 user_sessions = {}
-
 
 @app.route("/")
 def home():
