@@ -121,6 +121,18 @@ def mood_talk():
         "resposta": resposta,
         "etapa": step
     })
+@app.route("/session_user", methods=["GET"])
+def session_user():
+    user_id = request.args.get("user_id")
+
+    if not user_id or user_id not in spotify_clients:
+        return jsonify({"error": "Usuário não autenticado"}), 401
+
+    return jsonify({
+        "user_id": user_id,
+        "status": "autenticado"
+    })
+
 
 @app.route("/moodresult", methods=["GET"])
 def mood_result():
