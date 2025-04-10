@@ -1,5 +1,5 @@
 from flask import Flask, jsonify, request, redirect, make_response
-from spotify_auth import get_auth_url, get_token_from_callback
+from spotify_auth import get_auth_url, get_token_from_callback, get_valid_spotify_client
 from gemini_chat import start_conversation, extract_mood
 from playlist_creator import create_playlist_based_on_mood
 from flask_cors import CORS
