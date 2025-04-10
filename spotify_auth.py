@@ -25,7 +25,8 @@ def get_token_from_callback(code):
     token_info = sp_oauth.get_access_token(code, as_dict=True)
     access_token = token_info['access_token']
     sp = spotipy.Spotify(auth=access_token)
-    return sp  
+    return sp, token_info
+ 
 
 def get_valid_spotify_client(token_info):
     if sp_oauth.is_token_expired(token_info):

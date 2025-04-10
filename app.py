@@ -43,14 +43,15 @@ def spotify_callback():
 
     if code:
         try:
-            token_info = get_token_from_callback(code)
+            sp, token_info = get_token_from_callback(code)
             access_token = token_info.get("access_token")
+
             if not access_token:
                 raise Exception("Access token ausente na resposta do Spotify.")
 
             sp = Spotify(auth=access_token)
-            user_profile = sp.current_user()  
-            user_id = user_profile["id"]
+            user_profile = sp.current_user()
+            user_id = user_profile.get("id")
 
             if not user_id:
                 raise Exception("Não foi possível obter o ID do usuário.")
@@ -64,6 +65,7 @@ def spotify_callback():
             return _render_error_html("Erro ao finalizar login", str(e))
 
     return _render_error_html("Código de autorização não encontrado", "Código ausente na URL de callback.")
+
 
 @app.route("/session_user", methods=["GET"])
 def session_user():
