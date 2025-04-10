@@ -49,6 +49,7 @@ def spotify_callback():
             sp, token_info = get_valid_spotify_client(token_info)
             user_profile = sp.current_user()
             user_id = user_profile["id"]
+            spotify_clients[user_id] = sp 
 
             print(f"[INFO] Login bem-sucedido para user_id: {user_id}")
 
