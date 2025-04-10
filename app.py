@@ -1,8 +1,9 @@
-from flask import Flask, jsonify, request, redirect, make_response
-from spotify_auth import get_auth_url, get_token_from_callback, get_valid_spotify_client
+from flask import Flask, jsonify, request, redirect
+from flask_cors import CORS
+from spotify_auth import get_auth_url, get_token_from_callback
 from gemini_chat import start_conversation, extract_mood
 from playlist_creator import create_playlist_based_on_mood
-from flask_cors import CORS
+from spotipy import Spotify
 
 app = Flask(__name__)
 CORS(app, supports_credentials=True)
@@ -25,7 +26,12 @@ def spotify_login():
         auth_url = get_auth_url()
         return redirect(auth_url)
     except Exception as e:
-        return jsonify({"status": "error", "message": f"Erro ao gerar URL de autenticação: {str(e)}"}), 500
+        print(f"[ERRO] /spotify/login: {str(e)}")
+        return jsonify({
+            "status": "error",
+            "message": "Erro ao gerar URL de autenticação com Spotify.",
+            "details": str(e)
+        }), 500
 
 @app.route("/callback")
 def spotify_callback():
@@ -33,65 +39,52 @@ def spotify_callback():
     error = request.args.get("error")
 
     if error:
-        return """
-        <html>
-          <body>
-            <h1>❌ Erro no login com Spotify</h1>
-            <p>Erro: {}</p>
-            <script>window.close();</script>
-          </body>
-        </html>
-        """.format(error)
+        return _render_error_html("Erro no login com Spotify", error)
 
     if code:
         try:
             token_info = get_token_from_callback(code)
-            sp, token_info = get_valid_spotify_client(token_info)
-            user_profile = sp.current_user()
-            user_id = user_profile["id"]
-            spotify_clients[user_id] = sp 
+            access_token = token_info.get("access_token")
+            if not access_token:
+                raise Exception("Access token ausente na resposta do Spotify.")
 
+            sp = Spotify(auth=access_token)
+            user_profile = sp.current_user()
+            user_id = user_profile.get("id")
+
+            if not user_id:
+                raise Exception("Não foi possível obter o ID do usuário.")
+
+            spotify_clients[user_id] = sp
             print(f"[INFO] Login bem-sucedido para user_id: {user_id}")
 
-            return f"""
-            <html>
-              <head><title>Login Concluído</title></head>
-              <body>
-                <h1>✅ Login com Spotify realizado!</h1>
-                <p>Usuário: {user_id}</p>
-                <p>Você pode fechar esta aba agora.</p>
-                <script>window.close();</script>
-              </body>
-            </html>
-            """
+            return _render_success_html(user_id)
         except Exception as e:
-            print(f"[ERRO] Callback Spotify: {str(e)}")
-            return f"""
-            <html>
-              <body>
-                <h1>❌ Erro ao finalizar login</h1>
-                <p>{str(e)}</p>
-                <script>window.close();</script>
-              </body>
-            </html>
-            """
-    return """
-    <html>
-      <body>
-        <h1>❌ Código de autorização não encontrado.</h1>
-        <script>window.close();</script>
-      </body>
-    </html>
-    """
+            print(f"[ERRO] /callback: {str(e)}")
+            return _render_error_html("Erro ao finalizar login", str(e))
+
+    return _render_error_html("Código de autorização não encontrado", "Código ausente na URL de callback.")
+
+@app.route("/session_user", methods=["GET"])
+def session_user():
+    user_id = request.args.get("user_id")
+
+    if not user_id or user_id not in spotify_clients:
+        return jsonify({"error": "Usuário não autenticado"}), 401
+
+    return jsonify({
+        "user_id": user_id,
+        "status": "autenticado"
+    })
 
 @app.route("/moodtalk", methods=["POST"])
 def mood_talk():
-    data = request.json
+    data = request.get_json()
     user_id = data.get("user_id")
     user_input = data.get("message")
 
     if not user_id or not user_input:
-        return jsonify({"error": "Faltando dados"}), 400
+        return jsonify({"error": "Faltam dados obrigatórios (user_id ou message)."}), 400
 
     session = user_sessions.get(user_id, {"step": 0, "history": []})
     session["history"].append(user_input)
@@ -122,24 +115,38 @@ def mood_talk():
         "resposta": resposta,
         "etapa": step
     })
-@app.route("/session_user", methods=["GET"])
-def session_user():
-    user_id = request.args.get("user_id")
-
-    if not user_id or user_id not in spotify_clients:
-        return jsonify({"error": "Usuário não autenticado"}), 401
-
-    return jsonify({
-        "user_id": user_id,
-        "status": "autenticado"
-    })
-
 
 @app.route("/moodresult", methods=["GET"])
 def mood_result():
     user_id = request.args.get("user_id", "default")
     mood = extract_mood(user_id)
     return jsonify({"mood": mood})
+
+# Helpers para HTML de resposta bonitinho
+def _render_success_html(user_id):
+    return f"""
+    <html>
+      <head><title>Login Concluído</title></head>
+      <body>
+        <h1>✅ Login com Spotify realizado!</h1>
+        <p>Usuário: {user_id}</p>
+        <p>Você pode fechar esta aba agora.</p>
+        <script>window.close();</script>
+      </body>
+    </html>
+    """
+
+def _render_error_html(titulo, mensagem):
+    return f"""
+    <html>
+      <head><title>{titulo}</title></head>
+      <body>
+        <h1>❌ {titulo}</h1>
+        <p>{mensagem}</p>
+        <script>window.close();</script>
+      </body>
+    </html>
+    """
 
 if __name__ == "__main__":
     app.run(debug=True, port=3000)
