@@ -49,8 +49,8 @@ def spotify_callback():
                 raise Exception("Access token ausente na resposta do Spotify.")
 
             sp = Spotify(auth=access_token)
-            user_profile = sp.current_user()
-            user_id = user_profile.get("id")
+            user_profile = sp.current_user()  
+            user_id = user_profile["id"]
 
             if not user_id:
                 raise Exception("Não foi possível obter o ID do usuário.")
