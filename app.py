@@ -80,6 +80,7 @@ def session_user():
     })
 
 @app.route("/moodtalk", methods=["POST"])
+@app.route("/moodtalk", methods=["POST"])
 def mood_talk():
     data = request.get_json()
     user_id = data.get("user_id")
@@ -98,7 +99,17 @@ def mood_talk():
     if not sp:
         return jsonify({"error": "Usuário não autenticado."}), 401
 
-    if step >= 5:
+    if step == 4:
+        mensagem_intermediaria = (
+            "🎶 Tô curtindo muito essa nossa troca! Já tô sentindo sua vibe... "
+            "mas me conta mais um pouco pra afinar essa playlist com perfeição. 😉"
+        )
+        return jsonify({
+            "resposta": mensagem_intermediaria,
+            "etapa": step
+        })
+
+    elif step >= 8:
         mood = extract_mood(user_id)
         playlist_url = create_playlist_based_on_mood(mood, sp)
         del user_sessions[user_id]
