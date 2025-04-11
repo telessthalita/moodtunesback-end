@@ -131,9 +131,10 @@ def _render_success_html(user_id):
       <head><title>Login Concluído</title></head>
       <body>
         <h1>✅ Login com Spotify realizado!</h1>
-        <p>Usuário: {user_id}</p>
-        <p>Você pode fechar esta aba agora.</p>
-        <script>window.close();</script>
+        <script>
+          window.opener.postMessage({{ user_id: "{user_id}" }}, "*");
+          window.close();
+        </script>
       </body>
     </html>
     """
