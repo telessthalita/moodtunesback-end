@@ -66,7 +66,6 @@ def spotify_callback():
 
     return _render_error_html("Código de autorização não encontrado", "Código ausente na URL de callback.")
 
-
 @app.route("/session_user", methods=["GET"])
 def session_user():
     user_id = request.args.get("user_id")
@@ -80,7 +79,6 @@ def session_user():
     })
 
 @app.route("/moodtalk", methods=["POST"])
-@app.route("/moodtalk", methods=["POST"])
 def mood_talk():
     data = request.get_json()
     user_id = data.get("user_id")
@@ -89,15 +87,15 @@ def mood_talk():
     if not user_id or not user_input:
         return jsonify({"error": "Faltam dados obrigatórios (user_id ou message)."}), 400
 
+    sp = spotify_clients.get(user_id)
+    if not sp:
+        return jsonify({"error": "Usuário não autenticado."}), 401
+
     session = user_sessions.get(user_id, {"step": 0, "history": []})
     session["history"].append(user_input)
     step = session["step"]
     session["step"] += 1
     user_sessions[user_id] = session
-
-    sp = spotify_clients.get(user_id)
-    if not sp:
-        return jsonify({"error": "Usuário não autenticado."}), 401
 
     if step == 4:
         mensagem_intermediaria = (
@@ -110,18 +108,21 @@ def mood_talk():
         })
 
     elif step >= 8:
-        mood = extract_mood(user_id)
-        playlist_url = create_playlist_based_on_mood(mood, sp)
-        del user_sessions[user_id]
-        return jsonify({
-            "resposta": (
-                f"🎵 Foi um prazer trocar essa ideia contigo! "
-                f"Sua vibe foi detectada como *{mood}*, e aqui vai uma playlist feita sob medida: {playlist_url} "
-                f"Volta sempre que quiser continuar essa sinfonia. Até o próximo beat, DJ TT 🎧✨"
-            ),
-            "mood": mood,
-            "playlist_url": playlist_url
-        })
+        try:
+            mood = extract_mood(user_id)
+            playlist_url = create_playlist_based_on_mood(mood, sp)
+            del user_sessions[user_id]
+            return jsonify({
+                "resposta": (
+                    f"🎵 Foi um prazer trocar essa ideia contigo! "
+                    f"Sua vibe foi detectada como *{mood}*, e aqui vai uma playlist feita sob medida: {playlist_url} "
+                    f"Volta sempre que quiser continuar essa sinfonia. Até o próximo beat, DJ TT 🎧✨"
+                ),
+                "mood": mood,
+                "playlist_url": playlist_url
+            })
+        except Exception as e:
+            return jsonify({"error": f"Erro ao criar playlist: {str(e)}"}), 500
 
     resposta = start_conversation(user_input, user_id)
     return jsonify({
