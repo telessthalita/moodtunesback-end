@@ -83,7 +83,6 @@ def mood_talk():
     data = request.get_json()
     user_id = data.get("user_id")
     user_input = data.get("message")
-    is_final = data.get("finalize", False)
 
     if not user_id:
         return jsonify({"error": "Faltam dados obrigatórios (user_id)."}), 400
@@ -92,23 +91,22 @@ def mood_talk():
     if not sp:
         return jsonify({"error": "Usuário não autenticado."}), 401
 
-
     session = user_sessions.get(user_id, {"step": 0, "history": []})
     session["history"].append(user_input)
     step = session["step"]
     session["step"] += 1
     user_sessions[user_id] = session
 
-    if step == 8:
+    if step == 7:  
         try:
             mood = extract_mood(user_id)
             playlist_url = create_playlist_based_on_mood(mood, sp)
-            del user_sessions[user_id] 
+            del user_sessions[user_id]
             return jsonify({
                 "resposta": (
-                    f"🎧 Sua vibe foi detectada como *{mood}*! "
-                    f"Aqui está sua playlist sob medida: {playlist_url}. "
-                    f"Volta sempre que quiser mais música boa, DJ MoodTunes te espera! 🎶"
+                    f"🎵 Fechamos a vibe com chave de ouro! "
+                    f"Sua playlist tá pronta: {playlist_url} "
+                    f"Dá o play e curte esse som feito sob medida pra você! 🎶✨"
                 ),
                 "mood": mood,
                 "playlist_url": playlist_url
