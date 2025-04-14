@@ -133,9 +133,18 @@ def _render_success_html(user_id):
       <head><title>Login Concluído</title></head>
       <body>
         <h1>✅ Login com Spotify realizado!</h1>
+        <p>Você será redirecionado em instantes...</p>
         <script>
-          window.opener.postMessage({{ user_id: "{user_id}" }}, "*");
-          window.close();
+          try {{
+            if (window.opener) {{
+              window.opener.postMessage({{ user_id: "{user_id}" }}, "*");
+              window.close();
+            }} else {{
+              window.location.href = "https://moodtunes.lovable.app/login/success?user_id={user_id}";
+            }}
+          }} catch(e) {{
+            window.location.href = "https://moodtunes.lovable.app/login/success?user_id={user_id}";
+          }}
         </script>
       </body>
     </html>
