@@ -13,11 +13,6 @@ user_sessions = {}
 
 @app.route("/")
 def home():
-    login_status = request.args.get('login')
-    if login_status == 'success':
-        return "✅ Autenticação com o Spotify feita com sucesso!"
-    elif login_status == 'error':
-        return "❌ Erro na autenticação com o Spotify."
     return "🎶 Backend do MoodTunes funcionando com sucesso!"
 
 @app.route("/spotify/login")
@@ -39,7 +34,7 @@ def spotify_callback():
     error = request.args.get("error")
 
     if error:
-        return _render_error_html("Erro no login com Spotify", error)
+        return redirect("https://moodtunes.lovable.app/login?error=auth_error")
 
     if code:
         try:
@@ -47,24 +42,44 @@ def spotify_callback():
             access_token = token_info.get("access_token")
 
             if not access_token:
-                raise Exception("Access token ausente na resposta do Spotify.")
+                raise Exception("Access token ausente.")
 
             sp = Spotify(auth=access_token)
             user_profile = sp.current_user()
             user_id = user_profile.get("id")
 
             if not user_id:
-                raise Exception("Não foi possível obter o ID do usuário.")
+                raise Exception("ID do usuário não encontrado.")
 
             spotify_clients[user_id] = sp
-            print(f"[INFO] Login bem-sucedido para user_id: {user_id}")
+            print(f"[INFO] Autenticação OK para user_id: {user_id}")
 
-            return _render_success_html(user_id)
+            # Redirecionamento limpo para o frontend
+            return f"""
+            <html>
+              <head><title>Redirecionando...</title></head>
+              <body>
+                <script>
+                  const userId = "{user_id}";
+                  try {{
+                    if (window.opener) {{
+                      window.opener.postMessage({{ user_id: userId }}, "*");
+                      window.close();
+                    }} else {{
+                      window.location.href = "https://moodtunes.lovable.app/chat?user_id=" + userId;
+                    }}
+                  }} catch(e) {{
+                    window.location.href = "https://moodtunes.lovable.app/chat?user_id=" + userId;
+                  }}
+                </script>
+              </body>
+            </html>
+            """
         except Exception as e:
             print(f"[ERRO] /callback: {str(e)}")
-            return _render_error_html("Erro ao finalizar login", str(e))
+            return redirect("https://moodtunes.lovable.app/login?error=callback_exception")
 
-    return _render_error_html("Código de autorização não encontrado", "Código ausente na URL de callback.")
+    return redirect("https://moodtunes.lovable.app/login?error=missing_code")
 
 @app.route("/session_user", methods=["GET"])
 def session_user():
@@ -97,7 +112,7 @@ def mood_talk():
     session["step"] += 1
     user_sessions[user_id] = session
 
-    if step == 7:  
+    if step == 7:
         try:
             mood = extract_mood(user_id)
             playlist_url = create_playlist_based_on_mood(mood, sp)
@@ -125,42 +140,6 @@ def mood_result():
     user_id = request.args.get("user_id", "default")
     mood = extract_mood(user_id)
     return jsonify({"mood": mood})
-
-# Helpers para HTML de resposta bonitinho
-def _render_success_html(user_id):
-    return f"""
-    <html>
-      <head><title>Login Concluído</title></head>
-      <body>
-        <h1>✅ Login com Spotify realizado!</h1>
-        <p>Você será redirecionado em instantes...</p>
-        <script>
-          try {{
-            if (window.opener) {{
-              window.opener.postMessage({{ user_id: "{user_id}" }}, "*");
-              window.close();
-            }} else {{
-              window.location.href = "https://moodtunes.lovable.app/login/success?user_id={user_id}";
-            }}
-          }} catch(e) {{
-            window.location.href = "https://moodtunes.lovable.app/login/success?user_id={user_id}";
-          }}
-        </script>
-      </body>
-    </html>
-    """
-
-def _render_error_html(titulo, mensagem):
-    return f"""
-    <html>
-      <head><title>{titulo}</title></head>
-      <body>
-        <h1>❌ {titulo}</h1>
-        <p>{mensagem}</p>
-        <script>window.close();</script>
-      </body>
-    </html>
-    """
 
 if __name__ == "__main__":
     app.run(debug=True, port=3000)
