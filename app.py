@@ -54,32 +54,15 @@ def spotify_callback():
             spotify_clients[user_id] = sp
             print(f"[INFO] Autenticação OK para user_id: {user_id}")
 
-            # Redirecionamento limpo para o frontend
-            return f"""
-            <html>
-              <head><title>Redirecionando...</title></head>
-              <body>
-                <script>
-                  const userId = "{user_id}";
-                  try {{
-                    if (window.opener) {{
-                      window.opener.postMessage({{ user_id: userId }}, "*");
-                      window.close();
-                    }} else {{
-                      window.location.href = "https://moodtunes.lovable.app/chat?user_id=" + userId;
-                    }}
-                  }} catch(e) {{
-                    window.location.href = "https://moodtunes.lovable.app/chat?user_id=" + userId;
-                  }}
-                </script>
-              </body>
-            </html>
-            """
+            # Redireciona diretamente para o frontend, passando o user_id na URL
+            return redirect(f"https://moodtunes.lovable.app/chat?user_id={user_id}")
+
         except Exception as e:
             print(f"[ERRO] /callback: {str(e)}")
             return redirect("https://moodtunes.lovable.app/login?error=callback_exception")
 
     return redirect("https://moodtunes.lovable.app/login?error=missing_code")
+
 
 @app.route("/session_user", methods=["GET"])
 def session_user():
