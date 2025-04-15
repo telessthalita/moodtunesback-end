@@ -38,12 +38,7 @@ def spotify_callback():
     error = request.args.get("error")
 
     if error:
-        return """
-            <script>
-                window.opener?.postMessage({ error: "auth_error" }, "*");
-                window.close();
-            </script>
-        """
+        return redirect("https://moodtunes.lovable.app/login?error=auth_error")
 
     if code:
         try:
@@ -60,39 +55,15 @@ def spotify_callback():
             if not user_id:
                 raise Exception("ID do usuário não encontrado.")
 
-            token = jwt.encode({
-                'user_id': user_id,
-                'exp': datetime.utcnow() + timedelta(hours=1)
-            }, SECRET_KEY, algorithm='HS256')
-
             spotify_clients[user_id] = sp
-            print(f"[INFO] Autenticação OK para user_id: {user_id}")
 
-            return f"""
-                <script>
-                    window.opener?.postMessage({{"user_id": "{user_id}", "token": "{token}"}}, "*");
-                    window.location.href = 'https://moodtunes.lovable.app/chat';  // Redirecionamento para a página /chat
-                    window.close();
-                </script>
-                Autenticação concluída. Você pode fechar essa aba.
-            """
+            # Em vez de fechar a janela, redireciona para a página do chat
+            return redirect(f"https://moodtunes.lovable.app/chat?user_id={user_id}")
 
         except Exception as e:
-            print(f"[ERRO] /callback: {str(e)}")
-            return """
-                <script>
-                    window.opener?.postMessage({ error: "callback_exception" }, "*");
-                    window.close();
-                </script>
-            """
-
-    return """
-        <script>
-            window.opener?.postMessage({ error: "missing_code" }, "*");
-            window.close();
-        </script>
-    """
-
+            return redirect("https://moodtunes.lovable.app/login?error=callback_exception")
+    
+    return redirect("https://moodtunes.lovable.app/login?error=missing_code")
 @app.route("/session_user", methods=["GET"])
 def session_user():
     token = request.args.get("token")
