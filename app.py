@@ -103,7 +103,7 @@ def mood_talk():
     if step == 8:
         try:
             mood = extract_mood(user_id)
-            playlist_url = create_playlist_based_on_mood(mood, sp)
+            playlist_url = create_playlist_based_on_mood_and_genre(mood, sp)
             del user_sessions[user_id] 
             return jsonify({
                 "resposta": (
