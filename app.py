@@ -11,8 +11,7 @@ from datetime import datetime, timedelta
 app = Flask(__name__)
 CORS(app, supports_credentials=True)
 
-# Configurações secretas (chave secreta para JWT)
-SECRET_KEY = os.getenv('SECRET_KEY', 'mysecretkey')  # Pode ser um valor armazenado em variáveis de ambiente
+SECRET_KEY = os.getenv('SECRET_KEY', 'mysecretkey')  
 spotify_clients = {}
 user_sessions = {}
 
@@ -20,7 +19,6 @@ user_sessions = {}
 def home():
     return "🎶 Backend do MoodTunes funcionando com sucesso!"
 
-# Rota de login com Spotify
 @app.route("/spotify/login")
 def spotify_login():
     try:
@@ -34,7 +32,6 @@ def spotify_login():
             "details": str(e)
         }), 500
 
-# Callback após autenticação no Spotify
 @app.route("/callback")
 def spotify_callback():
     code = request.args.get("code")
@@ -63,19 +60,18 @@ def spotify_callback():
             if not user_id:
                 raise Exception("ID do usuário não encontrado.")
 
-            # Gerando um token JWT para o usuário
             token = jwt.encode({
                 'user_id': user_id,
                 'exp': datetime.utcnow() + timedelta(hours=1)
             }, SECRET_KEY, algorithm='HS256')
 
-            # Armazenando o cliente Spotify para o usuário
             spotify_clients[user_id] = sp
             print(f"[INFO] Autenticação OK para user_id: {user_id}")
 
             return f"""
                 <script>
                     window.opener?.postMessage({{"user_id": "{user_id}", "token": "{token}"}}, "*");
+                    window.location.href = 'https://moodtunes.lovable.app/chat';  // Redirecionamento para a página /chat
                     window.close();
                 </script>
                 Autenticação concluída. Você pode fechar essa aba.
@@ -97,7 +93,6 @@ def spotify_callback():
         </script>
     """
 
-# Verificação de sessão do usuário
 @app.route("/session_user", methods=["GET"])
 def session_user():
     token = request.args.get("token")
@@ -106,7 +101,6 @@ def session_user():
         return jsonify({"error": "Token ausente"}), 401
 
     try:
-        # Decodificando o token JWT
         payload = jwt.decode(token, SECRET_KEY, algorithms=['HS256'])
         user_id = payload.get('user_id')
 
@@ -123,7 +117,6 @@ def session_user():
     except jwt.InvalidTokenError:
         return jsonify({"error": "Token inválido"}), 401
 
-# Rota de conversação e mood
 @app.route("/moodtalk", methods=["POST"])
 def mood_talk():
     data = request.get_json()
@@ -135,7 +128,6 @@ def mood_talk():
         return jsonify({"error": "Faltam dados obrigatórios (user_id ou token)."}), 400
 
     try:
-        # Validando o token JWT
         payload = jwt.decode(token, SECRET_KEY, algorithms=['HS256'])
         if payload.get('user_id') != user_id:
             return jsonify({"error": "Token inválido para este usuário."}), 401
