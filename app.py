@@ -34,7 +34,12 @@ def spotify_callback():
     error = request.args.get("error")
 
     if error:
-        return redirect("https://moodtunes.lovable.app/login?error=auth_error")
+        return """
+            <script>
+                window.opener?.postMessage({ error: "auth_error" }, "*");
+                window.close();
+            </script>
+        """
 
     if code:
         try:
@@ -54,15 +59,29 @@ def spotify_callback():
             spotify_clients[user_id] = sp
             print(f"[INFO] Autenticação OK para user_id: {user_id}")
 
-            # Redireciona diretamente para o frontend, passando o user_id na URL
-            return redirect(f"https://moodtunes.lovable.app/chat?user_id={user_id}")
+            return f"""
+                <script>
+                    window.opener?.postMessage({{"user_id": "{user_id}"}}, "*");
+                    window.close();
+                </script>
+                Autenticação concluída. Você pode fechar essa aba.
+            """
 
         except Exception as e:
             print(f"[ERRO] /callback: {str(e)}")
-            return redirect("https://moodtunes.lovable.app/login?error=callback_exception")
+            return """
+                <script>
+                    window.opener?.postMessage({ error: "callback_exception" }, "*");
+                    window.close();
+                </script>
+            """
 
-    return redirect("https://moodtunes.lovable.app/login?error=missing_code")
-
+    return """
+        <script>
+            window.opener?.postMessage({ error: "missing_code" }, "*");
+            window.close();
+        </script>
+    """
 
 @app.route("/session_user", methods=["GET"])
 def session_user():
