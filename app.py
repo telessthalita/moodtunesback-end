@@ -26,7 +26,6 @@ def spotify_login():
         auth_url = get_auth_url()
         return redirect(auth_url)
     except Exception as e:
-        print(f"[ERRO] /spotify/login: {str(e)}")
         return jsonify({
             "status": "error",
             "message": "Erro ao gerar URL de autenticação com Spotify.",
@@ -57,11 +56,9 @@ def spotify_callback():
                 raise Exception("Não foi possível obter o ID do usuário.")
 
             spotify_clients[user_id] = sp
-            print(f"[INFO] Login bem-sucedido para user_id: {user_id}")
-
-            return _render_success_html(user_id)
+            frontend_url = f"https://moodtunes.lovable.app/chat?user_id={user_id}"
+            return redirect(frontend_url)
         except Exception as e:
-            print(f"[ERRO] /callback: {str(e)}")
             return _render_error_html("Erro ao finalizar login", str(e))
 
     return _render_error_html("Código de autorização não encontrado", "Código ausente na URL de callback.")
@@ -92,7 +89,6 @@ def mood_talk():
     if not sp:
         return jsonify({"error": "Usuário não autenticado."}), 401
 
-
     session = user_sessions.get(user_id, {"step": 0, "history": []})
     session["history"].append(user_input)
     step = session["step"]
@@ -103,7 +99,7 @@ def mood_talk():
         try:
             mood = extract_mood(user_id)
             playlist_url = create_playlist_based_on_mood(mood, sp)
-            del user_sessions[user_id] 
+            del user_sessions[user_id]
             return jsonify({
                 "resposta": (
                     f"🎧 Sua vibe foi detectada como *{mood}*! "
@@ -127,21 +123,6 @@ def mood_result():
     user_id = request.args.get("user_id", "default")
     mood = extract_mood(user_id)
     return jsonify({"mood": mood})
-
-# Helpers para HTML de resposta bonitinho
-def _render_success_html(user_id):
-    return f"""
-    <html>
-      <head><title>Login Concluído</title></head>
-      <body>
-        <h1>✅ Login com Spotify realizado!</h1>
-        <script>
-          window.opener.postMessage({{ user_id: "{user_id}" }}, "*");
-          window.close();
-        </script>
-      </body>
-    </html>
-    """
 
 def _render_error_html(titulo, mensagem):
     return f"""
