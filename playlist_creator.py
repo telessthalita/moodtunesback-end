@@ -10,9 +10,15 @@ MOOD_TO_GENRES = {
     "raivosa": ["metal", "hip-hop", "punk"]
 }
 
-def create_playlist_based_on_mood(mood, user_name, sp):
+def create_playlist_based_on_mood_and_genre(mood, user_name, sp, user_genres=None):
     user_id = sp.current_user()["id"]
     genres = MOOD_TO_GENRES.get(mood, ["pop"])
+
+    if user_genres:
+        user_genres_list = [genre.strip().lower() for genre in user_genres.split(",")]
+        genres.extend(user_genres_list)
+
+    genres = list(set(genres))
 
     GENRE_SEARCH_TERMS = {
         "pop": "tag:new pop",
@@ -75,19 +81,21 @@ def create_playlist_based_on_mood(mood, user_name, sp):
         recommendations = sp.recommendations(seed_genres=["pop"], limit=30)
         tracks = [track['uri'] for track in recommendations['tracks']]
 
-    # Criando a playlist com o nome personalizado
     playlist_name = f"MoodTunes - {mood.capitalize()} vibes"
     playlist_description = f"Feita especialmente para {user_name}. Playlist gerada pela IA DJ MoodTunes 🎧"
     
-    playlist = sp.user_playlist_create(
-        user=user_id,
-        name=playlist_name,
-        public=False,
-        description=playlist_description
-    )
+    try:
+        playlist = sp.user_playlist_create(
+            user=user_id,
+            name=playlist_name,
+            public=False,
+            description=playlist_description
+        )
 
-    for i in range(0, len(tracks), 100):
-        sp.playlist_add_items(playlist["id"], tracks[i:i+100])
+        for i in range(0, len(tracks), 100):
+            sp.playlist_add_items(playlist["id"], tracks[i:i+100])
 
-    return playlist["external_urls"]["spotify"]
+        return playlist["external_urls"]["spotify"]
 
+    except Exception as e:
+        return None
