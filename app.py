@@ -4,10 +4,15 @@ from spotify_auth import get_auth_url, get_token_from_callback
 from gemini_chat import start_conversation, extract_mood
 from playlist_creator import create_playlist_based_on_mood
 from spotipy import Spotify
+import jwt
+import os
+from datetime import datetime, timedelta
 
 app = Flask(__name__)
 CORS(app, supports_credentials=True)
 
+# Configurações secretas (chave secreta para JWT)
+SECRET_KEY = os.getenv('SECRET_KEY', 'mysecretkey')  # Pode ser um valor armazenado em variáveis de ambiente
 spotify_clients = {}
 user_sessions = {}
 
@@ -15,6 +20,7 @@ user_sessions = {}
 def home():
     return "🎶 Backend do MoodTunes funcionando com sucesso!"
 
+# Rota de login com Spotify
 @app.route("/spotify/login")
 def spotify_login():
     try:
@@ -28,6 +34,7 @@ def spotify_login():
             "details": str(e)
         }), 500
 
+# Callback após autenticação no Spotify
 @app.route("/callback")
 def spotify_callback():
     code = request.args.get("code")
@@ -56,12 +63,19 @@ def spotify_callback():
             if not user_id:
                 raise Exception("ID do usuário não encontrado.")
 
+            # Gerando um token JWT para o usuário
+            token = jwt.encode({
+                'user_id': user_id,
+                'exp': datetime.utcnow() + timedelta(hours=1)
+            }, SECRET_KEY, algorithm='HS256')
+
+            # Armazenando o cliente Spotify para o usuário
             spotify_clients[user_id] = sp
             print(f"[INFO] Autenticação OK para user_id: {user_id}")
 
             return f"""
                 <script>
-                    window.opener?.postMessage({{"user_id": "{user_id}"}}, "*");
+                    window.opener?.postMessage({{"user_id": "{user_id}", "token": "{token}"}}, "*");
                     window.close();
                 </script>
                 Autenticação concluída. Você pode fechar essa aba.
@@ -83,26 +97,52 @@ def spotify_callback():
         </script>
     """
 
+# Verificação de sessão do usuário
 @app.route("/session_user", methods=["GET"])
 def session_user():
-    user_id = request.args.get("user_id")
+    token = request.args.get("token")
 
-    if not user_id or user_id not in spotify_clients:
-        return jsonify({"error": "Usuário não autenticado"}), 401
+    if not token:
+        return jsonify({"error": "Token ausente"}), 401
 
-    return jsonify({
-        "user_id": user_id,
-        "status": "autenticado"
-    })
+    try:
+        # Decodificando o token JWT
+        payload = jwt.decode(token, SECRET_KEY, algorithms=['HS256'])
+        user_id = payload.get('user_id')
 
+        if not user_id or user_id not in spotify_clients:
+            raise Exception("Usuário não autenticado")
+
+        return jsonify({
+            "user_id": user_id,
+            "status": "autenticado"
+        })
+
+    except jwt.ExpiredSignatureError:
+        return jsonify({"error": "Sessão expirada"}), 401
+    except jwt.InvalidTokenError:
+        return jsonify({"error": "Token inválido"}), 401
+
+# Rota de conversação e mood
 @app.route("/moodtalk", methods=["POST"])
 def mood_talk():
     data = request.get_json()
     user_id = data.get("user_id")
     user_input = data.get("message")
+    token = data.get("token")
 
-    if not user_id:
-        return jsonify({"error": "Faltam dados obrigatórios (user_id)."}), 400
+    if not user_id or not token:
+        return jsonify({"error": "Faltam dados obrigatórios (user_id ou token)."}), 400
+
+    try:
+        # Validando o token JWT
+        payload = jwt.decode(token, SECRET_KEY, algorithms=['HS256'])
+        if payload.get('user_id') != user_id:
+            return jsonify({"error": "Token inválido para este usuário."}), 401
+    except jwt.ExpiredSignatureError:
+        return jsonify({"error": "Sessão expirada"}), 401
+    except jwt.InvalidTokenError:
+        return jsonify({"error": "Token inválido"}), 401
 
     sp = spotify_clients.get(user_id)
     if not sp:
@@ -137,6 +177,7 @@ def mood_talk():
         "etapa": step
     })
 
+# Rota de resultado de mood
 @app.route("/moodresult", methods=["GET"])
 def mood_result():
     user_id = request.args.get("user_id", "default")
