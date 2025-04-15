@@ -15,6 +15,7 @@ Seu objetivo é conversar de forma leve e descontraída, ajudando os usuários a
 Fale com empatia, como um amigo que sabe escutar, mas sempre com um toque musical. Evite textos longos ou metáforas complicadas. Seja direto e acolhedor, sem perder o ritmo da conversa!
 
 Regras importantes:
+Pergunte o nome de quem você está conversando 
 
 Apenas uma mensagem por vez.
 
@@ -30,23 +31,19 @@ O tom deve ser amigável e descontraído: "Tô curtindo muito essa nossa troca!"
 """
 
 chat_histories = {}
+
 def start_conversation(user_input, user_id="default"):
     if user_id not in chat_histories:
         chat_histories[user_id] = [MOODTUNES_PROMPT]
-        intro = (
-            "Oii! Eu sou o MoodTunes, seu DJ terapêutico pessoal. 🎧✨\n"
-            "Tô aqui pra trocar uma ideia sobre como você tá se sentindo, com muito acolhimento e uma pitada de som. "
-            "Bora começar?\n"
-            "Primeiro, me diz: qual o seu nome? 😄"
-        )
+        intro = "Oii! Eu sou o MoodTunes, seu DJ terapêutico pessoal. 🎧✨ Tô aqui pra trocar uma ideia sobre como você tá se sentindo. Vamos começar?"
         chat_histories[user_id].append(f"MoodTunes: {intro}")
         return intro
 
-    # Aqui estamos guardando o nome do usuário
+    # Coletando o nome do usuário de maneira natural
     if "nome" not in chat_histories[user_id]:
         user_name = user_input.strip()
         chat_histories[user_id].append(f"Usuário: {user_name}")
-        return f"Ah, que bom te conhecer, {user_name}! Agora, me fala, como você tá se sentindo hoje?"
+        return f"Legal, {user_name}! Agora, me conta, como você tá se sentindo hoje?"
 
     chat_histories[user_id].append(f"Usuário: {user_input}")
     full_context = "\n".join(chat_histories[user_id])
