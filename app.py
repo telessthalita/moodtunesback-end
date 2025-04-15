@@ -2,7 +2,7 @@ from flask import Flask, jsonify, request, redirect
 from flask_cors import CORS
 from spotify_auth import get_auth_url, get_token_from_callback
 from gemini_chat import start_conversation, extract_mood
-from playlist_creator import create_playlist_based_on_mood
+from playlist_creator import create_playlist_based_on_mood_and_genre
 from spotipy import Spotify
 
 app = Flask(__name__)
