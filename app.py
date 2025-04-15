@@ -39,7 +39,7 @@ def spotify_callback():
     error = request.args.get("error")
 
     if error:
-        return _render_error_html("Erro no login com Spotify", error)
+        return redirect(f"https://moodtunes.lovable.app/?login=error&message={error}")
 
     if code:
         try:
@@ -59,13 +59,14 @@ def spotify_callback():
             spotify_clients[user_id] = sp
             print(f"[INFO] Login bem-sucedido para user_id: {user_id}")
 
-            return _render_success_html(user_id)
+
+            return redirect(f"https://moodtunes.lovable.app/chat?user_id={user_id}")
+            
         except Exception as e:
             print(f"[ERRO] /callback: {str(e)}")
-            return _render_error_html("Erro ao finalizar login", str(e))
+            return redirect(f"https://moodtunes.lovable.app/?login=error&message={str(e)}")
 
-    return _render_error_html("Código de autorização não encontrado", "Código ausente na URL de callback.")
-
+    return redirect("https://moodtunes.lovable.app/?login=error&message=Código de autorização não encontrado")
 
 @app.route("/session_user", methods=["GET"])
 def session_user():
