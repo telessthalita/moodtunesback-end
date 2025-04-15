@@ -1,9 +1,10 @@
 import os
+
 from flask import Flask, jsonify, request, redirect
 from flask_cors import CORS
 from spotify_auth import get_auth_url, get_token_from_callback
 from gemini_chat import start_conversation, extract_mood
-from playlist_creator import create_playlist_based_on_mood_and_genre
+from playlist_creator import create_playlist_based_on_mood
 from spotipy import Spotify
 
 app = Flask(__name__)
@@ -11,7 +12,6 @@ CORS(app, supports_credentials=True)
 
 spotify_clients = {}
 user_sessions = {}
-user_names = {}  # salva os nomes dos usuários
 
 @app.route("/")
 def home():
@@ -54,15 +54,12 @@ def spotify_callback():
             sp = Spotify(auth=access_token)
             user_profile = sp.current_user()
             user_id = user_profile.get("id")
-            user_name = user_profile.get("display_name", user_id)
 
             if not user_id:
                 raise Exception("Não foi possível obter o ID do usuário.")
 
             spotify_clients[user_id] = sp
-            user_names[user_id] = user_name
-
-            print(f"[INFO] Login bem-sucedido para user_id: {user_id} ({user_name})")
+            print(f"[INFO] Login bem-sucedido para user_id: {user_id}")
 
             return _render_success_html(user_id)
 
@@ -71,6 +68,8 @@ def spotify_callback():
             return _render_error_html("Erro ao finalizar login", str(e))
 
     return _render_error_html("Código de autorização não encontrado", "Código ausente na URL de callback.")
+
+
 
 @app.route("/session_user", methods=["GET"])
 def session_user():
@@ -98,20 +97,18 @@ def mood_talk():
     if not sp:
         return jsonify({"error": "Usuário não autenticado."}), 401
 
+
     session = user_sessions.get(user_id, {"step": 0, "history": []})
     session["history"].append(user_input)
     step = session["step"]
     session["step"] += 1
     user_sessions[user_id] = session
 
-    if step == 8 or is_final:
+    if step == 8:
         try:
             mood = extract_mood(user_id)
-            user_name = user_names.get(user_id, "MoodTunes user")
-            playlist_url = create_playlist_based_on_mood_and_genre(mood, user_name, sp)
-
-            del user_sessions[user_id]  # resetar sessão após playlist
-
+            playlist_url = create_playlist_based_on_mood(mood, sp)
+            del user_sessions[user_id] 
             return jsonify({
                 "resposta": (
                     f"🎧 Sua vibe foi detectada como *{mood}*! "
@@ -136,7 +133,7 @@ def mood_result():
     mood = extract_mood(user_id)
     return jsonify({"mood": mood})
 
-# Helpers para HTML
+# Helpers para HTML de resposta bonitinho
 def _render_success_html(user_id):
     return f"""
     <html>
