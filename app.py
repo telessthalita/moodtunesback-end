@@ -104,7 +104,7 @@ def mood_talk():
     session["step"] += 1
     user_sessions[user_id] = session
 
-    if step == 8:
+    if step == 5:
         try:
             mood = extract_mood(user_id)
             playlist_url = create_playlist_based_on_mood(mood, sp)
