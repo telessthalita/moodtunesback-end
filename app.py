@@ -142,11 +142,13 @@ def _render_success_html(user_id):
         <h1>✅ Login com Spotify realizado!</h1>
         <script>
           window.opener.postMessage({{ user_id: "{user_id}" }}, "*");
+          // Fecha a janela popup
           window.close();
         </script>
       </body>
     </html>
     """
+
 
 def _render_error_html(titulo, mensagem):
     return f"""
