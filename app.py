@@ -40,8 +40,11 @@ def spotify_callback():
     code = request.args.get("code")
     error = request.args.get("error")
 
+    print(f"Código recebido: {code}")  
+    print(f"Variáveis atuais: CLIENT_ID={os.getenv('SPOTIPY_CLIENT_ID')}, REDIRECT_URI={os.getenv('SPOTIPY_REDIRECT_URI')}")
+
     if error:
-        return _render_error_html("Erro no login com Spotify", error)
+        return _render_error_html("Erro no Spotify", error)
 
     if code:
         try:
