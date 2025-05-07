@@ -133,7 +133,6 @@ def mood_result():
     mood = extract_mood(user_id)
     return jsonify({"mood": mood})
 
-# Helpers para HTML de resposta bonitinho
 def _render_success_html(user_id):
     return f"""
     <html>
@@ -142,13 +141,11 @@ def _render_success_html(user_id):
         <h1>✅ Login com Spotify realizado!</h1>
         <script>
           window.opener.postMessage({{ user_id: "{user_id}" }}, "*");
-
-          window.close();
+          window.location.href = "https://moodtunes.lovable.app/chat?user_id={user_id}";
         </script>
       </body>
     </html>
     """
-
 
 def _render_error_html(titulo, mensagem):
     return f"""
