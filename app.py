@@ -41,47 +41,33 @@ def spotify_callback():
     error = request.args.get("error")
 
     if error:
-        return """
-        <html>
-            <script>
-                window.opener.postMessage({{
-                    type: 'spotify_auth_error',
-                    error: '{0}'
-                }}, '*');
-                window.close();
-            </script>
-        </html>
-        """.format(error)
+        return _render_error_html("Erro no login com Spotify", error)
 
-    try:
-        sp, token_info = get_token_from_callback(code)
-        user_profile = sp.current_user()
-        user_id = user_profile["id"]
+    if code:
+        try:
+            sp, token_info = get_token_from_callback(code)
+            access_token = token_info.get("access_token")
 
-        return f"""
-        <html>
-            <script>
-                window.opener.postMessage({{
-                    type: 'spotify_auth_success',
-                    user_id: '{user_id}',
-                    access_token: '{token_info["access_token"]}'
-                }}, '*');
-                window.close();
-            </script>
-        </html>
-        """
-    except Exception as e:
-        return f"""
-        <html>
-            <script>
-                window.opener.postMessage({{
-                    type: 'spotify_auth_error',
-                    error: '{str(e)}'
-                }}, '*');
-                window.close();
-            </script>
-        </html>
-        """
+            if not access_token:
+                raise Exception("Access token ausente na resposta do Spotify.")
+
+            sp = Spotify(auth=access_token)
+            user_profile = sp.current_user()
+            user_id = user_profile.get("id")
+
+            if not user_id:
+                raise Exception("Não foi possível obter o ID do usuário.")
+
+            spotify_clients[user_id] = sp
+            print(f"[INFO] Login bem-sucedido para user_id: {user_id}")
+
+            return _render_success_html(user_id)
+
+        except Exception as e:
+            print(f"[ERRO] /callback: {str(e)}")
+            return _render_error_html("Erro ao finalizar login", str(e))
+
+    return _render_error_html("Código de autorização não encontrado", "Código ausente na URL de callback.")
 
 
 
@@ -156,7 +142,7 @@ def _render_success_html(user_id):
         <h1>✅ Login com Spotify realizado!</h1>
         <script>
           window.opener.postMessage({{ user_id: "{user_id}" }}, "*");
-
+          // Fecha a janela popup
           window.close();
         </script>
       </body>
