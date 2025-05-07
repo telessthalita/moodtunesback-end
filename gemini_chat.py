@@ -5,6 +5,7 @@ from google import genai
 load_dotenv()
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+
 client = genai.Client(api_key=GEMINI_API_KEY)
 
 MOODTUNES_PROMPT = """
@@ -33,35 +34,37 @@ Regras importantes:
 - Após 3-4 interações, resumir o humor para gerar a playlist.
 
 """
-
 chat_histories = {}
 
 def start_conversation(user_input, user_id="default"):
     if user_id not in chat_histories:
         chat_histories[user_id] = [MOODTUNES_PROMPT]
     
+ 
     chat_histories[user_id].append(f"Usuário: {user_input}")
     full_context = "\n".join(chat_histories[user_id])
-    
+    full_context += "\nMoodTunes: Lembre-se: responda com no máximo 3 parágrafos curtos, de forma leve e musical."
+
+  
     response = client.models.generate_content(
         model="gemini-1.5-flash",
         contents=full_context
     )
-    
+
     reply = response.text
     chat_histories[user_id].append(f"MoodTunes: {reply}")
     return reply
 
 def extract_mood(user_id="default"):
     if user_id not in chat_histories:
-        return None
+        return "sem conversa"
 
     full_context = "\n".join(chat_histories[user_id])
-    full_context += "\nMoodTunes: Resuma o humor do usuário em UMA palavra: triste, ansioso, feliz, cansado, raivoso ou nostalgico."
+    full_context += "\nMoodTunes: Agora diga apenas uma palavra que representa o estado emocional do usuário."
 
     response = client.models.generate_content(
         model="gemini-1.5-flash",
         contents=full_context
     )
-    
+
     return response.text.strip().lower()
