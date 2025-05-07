@@ -28,6 +28,7 @@ def spotify_login():
         auth_url = get_auth_url()
         return redirect(auth_url)
     except Exception as e:
+        print(f"[ERRO] /spotify/login: {str(e)}")
         return jsonify({
             "status": "error",
             "message": "Erro ao gerar URL de autenticação com Spotify.",
@@ -58,13 +59,17 @@ def spotify_callback():
                 raise Exception("Não foi possível obter o ID do usuário.")
 
             spotify_clients[user_id] = sp
+            print(f"[INFO] Login bem-sucedido para user_id: {user_id}")
 
             return _render_success_html(user_id)
 
         except Exception as e:
+            print(f"[ERRO] /callback: {str(e)}")
             return _render_error_html("Erro ao finalizar login", str(e))
 
     return _render_error_html("Código de autorização não encontrado", "Código ausente na URL de callback.")
+
+
 
 @app.route("/session_user", methods=["GET"])
 def session_user():
@@ -92,17 +97,18 @@ def mood_talk():
     if not sp:
         return jsonify({"error": "Usuário não autenticado."}), 401
 
+
     session = user_sessions.get(user_id, {"step": 0, "history": []})
     session["history"].append(user_input)
     step = session["step"]
     session["step"] += 1
     user_sessions[user_id] = session
 
-    if step == 5 or is_final:
+    if step == 5:
         try:
             mood = extract_mood(user_id)
             playlist_url = create_playlist_based_on_mood(mood, sp)
-            del user_sessions[user_id]
+            del user_sessions[user_id] 
             return jsonify({
                 "resposta": (
                     f"🎧 Sua vibe foi detectada como *{mood}*! "
@@ -115,7 +121,11 @@ def mood_talk():
         except Exception as e:
             return jsonify({"error": f"Erro ao criar playlist: {str(e)}"}), 500
 
-    return jsonify({"resposta": "Analisando sua vibe... me diga mais!"})
+    resposta = start_conversation(user_input, user_id)
+    return jsonify({
+        "resposta": resposta,
+        "etapa": step
+    })
 
 @app.route("/moodresult", methods=["GET"])
 def mood_result():
@@ -123,6 +133,7 @@ def mood_result():
     mood = extract_mood(user_id)
     return jsonify({"mood": mood})
 
+# Helpers para HTML de resposta bonitinho
 def _render_success_html(user_id):
     return f"""
     <html>
@@ -131,11 +142,13 @@ def _render_success_html(user_id):
         <h1>✅ Login com Spotify realizado!</h1>
         <script>
           window.opener.postMessage({{ user_id: "{user_id}" }}, "*");
+          // Fecha a janela popup
           window.close();
         </script>
       </body>
     </html>
     """
+
 
 def _render_error_html(titulo, mensagem):
     return f"""
