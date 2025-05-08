@@ -85,53 +85,47 @@ def session_user():
 
 @app.route("/moodtalk", methods=["POST"])
 def mood_talk():
-    try:
-        data = request.get_json()
-        if not data:
-            return jsonify({"error": "Dados não fornecidos"}), 400
+    data = request.get_json()
+    user_id = data.get("user_id")
+    user_input = data.get("message")
+    is_final = data.get("finalize", False)
 
-        user_id = data.get("user_id")
-        user_input = data.get("message")
-        is_final = data.get("finalize", False)
+    if not user_id:
+        return jsonify({"error": "Faltam dados obrigatórios (user_id)."}), 400
 
-        if not user_id or not user_input:
-            return jsonify({"error": "Faltam dados obrigatórios (user_id ou message)."}), 400
+    sp = spotify_clients.get(user_id)
+    if not sp:
+        return jsonify({"error": "Usuário não autenticado."}), 401
 
-        sp = spotify_clients.get(user_id)
-        if not sp:
-            return jsonify({"error": "Usuário não autenticado."}), 401
 
-        session = user_sessions.get(user_id, {"step": 0, "history": []})
-        session["history"].append(user_input)
-        step = session["step"]
-        session["step"] += 1
-        user_sessions[user_id] = session
+    session = user_sessions.get(user_id, {"step": 0, "history": []})
+    session["history"].append(user_input)
+    step = session["step"]
+    session["step"] += 1
+    user_sessions[user_id] = session
 
-        if step >= 4:  
-            try:
-                mood = extract_mood(user_id)
-                playlist_url = create_playlist_based_on_mood(mood, sp)
-                del user_sessions[user_id]
-                return jsonify({
-                    "resposta": f"🎧 Playlist {mood} criada: {playlist_url}",
-                    "mood": mood,
-                    "playlist_url": playlist_url,
-                    "final": True
-                })
-            except Exception as e:
-                print(f"Erro ao criar playlist: {str(e)}")
-                return jsonify({"error": f"Erro ao criar playlist: {str(e)}"}), 500
+    if step == 5:
+        try:
+            mood = extract_mood(user_id)
+            playlist_url = create_playlist_based_on_mood(mood, sp)
+            del user_sessions[user_id] 
+            return jsonify({
+                "resposta": (
+                    f"🎧 Sua vibe foi detectada como *{mood}*! "
+                    f"Aqui está sua playlist sob medida: {playlist_url}. "
+                    f"Volta sempre que quiser mais música boa, DJ MoodTunes te espera! 🎶"
+                ),
+                "mood": mood,
+                "playlist_url": playlist_url
+            })
+        except Exception as e:
+            return jsonify({"error": f"Erro ao criar playlist: {str(e)}"}), 500
 
-        resposta = start_conversation(user_input, user_id)
-        return jsonify({
-            "resposta": resposta,
-            "etapa": step,
-            "final": False
-        })
-
-    except Exception as e:
-        print(f"Erro geral em /moodtalk: {str(e)}")
-        return jsonify({"error": f"Erro interno do servidor: {str(e)}"}), 500
+    resposta = start_conversation(user_input, user_id)
+    return jsonify({
+        "resposta": resposta,
+        "etapa": step
+    })
 
 @app.route("/moodresult", methods=["GET"])
 def mood_result():
@@ -139,17 +133,22 @@ def mood_result():
     mood = extract_mood(user_id)
     return jsonify({"mood": mood})
 
+# Helpers para HTML de resposta bonitinho
 def _render_success_html(user_id):
     return f"""
     <html>
+      <head><title>Login Concluído</title></head>
       <body>
+        <h1>✅ Login com Spotify realizado!</h1>
         <script>
           window.opener.postMessage({{ user_id: "{user_id}" }}, "*");
-          window.location.href = "https://moodtunes.lovable.app/chat?user_id={user_id}";
+          // Fecha a janela popup
+          window.close();
         </script>
       </body>
     </html>
     """
+
 
 def _render_error_html(titulo, mensagem):
     return f"""
