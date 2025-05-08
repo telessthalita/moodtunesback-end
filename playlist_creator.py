@@ -79,7 +79,7 @@ def create_playlist_based_on_mood(mood, sp):
 
     playlist = sp.user_playlist_create(
         user=user_id,
-@@ -36,6 +82,7 @@ def create_playlist_based_on_mood(mood, sp):
+        def create_playlist_based_on_mood(mood, sp):
         description="Playlist gerada pela IA DJ MoodTunes 🎧"
     )
 
