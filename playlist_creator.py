@@ -1,89 +1,77 @@
-import random
-from datetime import datetime
-from spotipy.exceptions import SpotifyException
-
-MOOD_PROFILES = {
-    "feliz": {
-        "genres": ["pop", "dance", "indie-pop", "funk"],
-        "params": {
-            "valence": 0.8,
-            "energy": 0.7,
-            "danceability": 0.7,
-            "tempo": (100, 140)
-        },
-        "description": "Playlist energética para elevar seu espírito! ✨"
-    },
-    "triste": {
-        "genres": ["acoustic", "piano", "singer-songwriter", "chill"],
-        "params": {
-            "valence": 0.3,
-            "energy": 0.3,
-            "acousticness": 0.7,
-            "tempo": (60, 100)
-        },
-        "description": "Músicas para acompanhar seus sentimentos 🫂"
-    },
-    "focada": {
-        "genres": ["classical", "ambient", "jazz", "instrumental"],
-        "params": {
-            "instrumentalness": 0.7,
-            "energy": 0.4,
-            "valence": 0.5,
-            "tempo": (80, 110)
-        },
-        "description": "Concentração máxima com essas seleções 🎯"
-    },
-    "ansiosa": {
-        "genres": ["ambient", "new-age", "meditation", "soundtrack"],
-        "params": {
-            "valence": 0.4,
-            "energy": 0.2,
-            "acousticness": 0.6,
-            "tempo": (60, 90)
-        },
-        "description": "Sons relaxantes para acalmar 🌿"
-    }
-}
 
 def create_playlist_based_on_mood(mood, sp):
-    try:
-        mood_profile = MOOD_PROFILES.get(mood.lower(), MOOD_PROFILES["feliz"])
-        user = sp.current_user()
-        user_id = user["id"]
-        
-        available_genres = sp.recommendation_genre_seeds()['genres']
-        valid_genres = [g for g in mood_profile["genres"] if g in available_genres][:2]
-        
-        if not valid_genres:
-            valid_genres = ["pop", "acoustic"]
+    user_id = sp.current_user()["id"]
+    genres = MOOD_TO_GENRES.get(mood, ["pop"])
+    
+    GENRE_SEARCH_TERMS = {
+        "pop": "tag:new pop",
+        "indie": "tag:indie year:2020-2023",
+        "dance": "tag:dance",
+        "reggae": "genre:reggae",
+        "acoustic": "tag:acoustic",
+        "piano": "piano",
+        "blues": "genre:blues",
+        "chill": "tag:chill",
+        "instrumental": "tag:instrumental",
+        "jazz": "genre:jazz",
+        "ambient": "tag:ambient",
+        "lofi": "tag:lofi",
+        "downtempo": "tag:downtempo",
+        "edm": "tag:edm",
+        "rock": "tag:indie rock",
+        "house": "tag:house",
+        "trap": "tag:trap",
+        "sleep": "tag:sleep",
+        "calm": "tag:calm",
+        "classical": "genre:classical",
+        "metal": "tag:metal",
+        "hip-hop": "tag:hiphop",
+        "punk": "tag:punk"
+    }
+    
+    tracks = set()
+    
+    for genre in genres:
+        search_query = GENRE_SEARCH_TERMS.get(genre, f"tag:{genre}")
+        try:
+            playlist_results = sp.search(q=search_query, type='playlist', limit=2)
+            if playlist_results['playlists']['items']:
+                playlist_tracks = sp.playlist_tracks(playlist_results['playlists']['items'][0]['id'])
+                tracks.update(item['track']['uri'] for item in playlist_tracks['items'] if item['track'])
+            
+            track_results = sp.search(q=search_query, type='track', limit=15)
+            tracks.update(item['uri'] for item in track_results['tracks']['items'])
+            
+        except Exception as e:
+            continue
 
-        recommendations = sp.recommendations(
-            seed_genres=valid_genres,
-            limit=30,
-            **{k: v for k, v in mood_profile["params"].items() if not isinstance(v, tuple)}
-        )
-        
-        if "tempo" in mood_profile["params"]:
-            min_tempo, max_tempo = mood_profile["params"]["tempo"]
-            recommendations["tracks"] = [
-                t for t in recommendations["tracks"]
-                if min_tempo <= t["tempo"] <= max_tempo
-            ][:20]
-        
-        track_uris = [track["uri"] for track in recommendations["tracks"]]
-        
-        playlist_name = f"{mood.capitalize()} Vibes - MoodTunes"
-        playlist = sp.user_playlist_create(
-            user=user_id,
-            name=playlist_name,
-            public=False,
-            description=f"{mood_profile['description']} ({datetime.now().strftime('%d/%m/%Y')})"
-        )
-        
-        sp.playlist_add_items(playlist["id"], track_uris)
-        return playlist["external_urls"]["spotify"]
-        
-    except SpotifyException as e:
-        raise Exception(f"Erro no Spotify: {e.msg}")
-    except Exception as e:
-        raise Exception(f"Erro ao criar playlist: {str(e)}")
+    tracks = list(tracks)
+    
+    if len(tracks) < 10:
+        try:
+            recommendations = sp.recommendations(
+                seed_genres=genres[:2],
+                limit=20,
+                market="BR"
+            )
+            tracks.extend([track['uri'] for track in recommendations['tracks']])
+        except Exception as e:
+            pass
+
+    tracks = list(set(tracks))
+    
+    if not tracks:
+        recommendations = sp.recommendations(seed_genres=["pop"], limit=30)
+        tracks = [track['uri'] for track in recommendations['tracks']]
+
+
+    playlist = sp.user_playlist_create(
+        user=user_id,
+@@ -36,6 +82,7 @@ def create_playlist_based_on_mood(mood, sp):
+        description="Playlist gerada pela IA DJ MoodTunes 🎧"
+    )
+
+    for i in range(0, len(tracks), 100):
+        sp.playlist_add_items(playlist["id"], tracks[i:i+100])
+
+    return playlist["external_urls"]["spotify"]
