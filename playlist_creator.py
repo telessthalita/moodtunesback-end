@@ -1,3 +1,15 @@
+import random
+
+MOOD_TO_GENRES = {
+    "feliz": ["pop", "dance"],
+    "triste": ["acoustic", "piano"],
+    "focada": ["chill", "instrumental"],
+    "ansiosa": ["ambient", "lofi"],
+    "animada": ["edm", "rock"],
+    "cansada": ["sleep", "calm"],
+    "raivosa": ["metal", "hip-hop"]
+}
+
 
 def create_playlist_based_on_mood(mood, sp):
     user_id = sp.current_user()["id"]
